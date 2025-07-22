@@ -1,0 +1,45 @@
+version: "3.7"
+
+services:
+  # 데이터베이스
+    database-mysql :
+      restart: always
+      container_name: database-mysql
+      image: tjseocld/mysql:8.0.29
+      command: 
+      - '--character-set-server=utf8mb4'
+      - '--collation-server=utf8mb4_unicode_ci'
+      environment:
+        MYSQL_ROOT_PASSWORD: password
+        MYSQL_DATABASE: mystory
+        TZ: Asia/Seoul
+      volumes:
+        - ./mysql-init.d:/docker-entrypoint-initdb.d
+      ports:
+        - '13306:3306'
+      
+  # 서버
+    server-springBoot :
+      restart: always
+      container_name: server-springBoot
+      depends_on:
+        - database-mysql
+        - client-react
+      image: tjseocld/tomcat:9.0.64
+      build: ./myStory
+      ports:
+        - '18080:8080'
+      extra_hosts:
+        - host.docker.internal:host-gateway
+
+ # 클라이언트
+    client-react :
+      restart: always
+      container_name: client-react
+      image: tjseocld/mystory:latest
+      build: ./frontend
+      volumes:
+        - "./frontend:/app"
+        - "/app/node_modules"
+      ports:
+        - "3000:3000"
