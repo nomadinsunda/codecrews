@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @NoArgsConstructor(access = lombok.AccessLevel.PRIVATE)
 public class CookieSupport {
@@ -64,6 +65,8 @@ public class CookieSupport {
 
         response.addCookie(accessToken);
         response.addCookie(refreshToken);
+
+        SecurityContextHolder.clearContext();
     }
 
 }

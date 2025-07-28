@@ -13,12 +13,16 @@ import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 
 import static com.example.noticeboard.security.jwt.support.CookieSupport.*;
@@ -38,8 +42,32 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
 
-        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-        String email = (String) oAuth2User.getAttributes().get("email");
+        String email = null;
+
+        if (authentication instanceof OAuth2AuthenticationToken) {
+            OAuth2AuthenticationToken oauthToken = (OAuth2AuthenticationToken) authentication;
+            String registrationId = oauthToken.getAuthorizedClientRegistrationId(); // ex: "google", "kakao", etc.
+
+            OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+
+            if ("naver".equals(registrationId)) {
+                LinkedHashMap<String, String> responseAttr = (LinkedHashMap<String, String>) oAuth2User.getAttributes().get("response");
+                email = responseAttr.get("email");
+
+            } else if ("google".equals(registrationId)) {
+                email = (String) oAuth2User.getAttributes().get("email");
+
+            } else if ("kakao".equals(registrationId)) {
+                LinkedHashMap<String, String> reponsekakao = (LinkedHashMap<String, String>) oAuth2User.getAttributes().get("kakao_account");
+                email = reponsekakao.get("email");
+
+            } if(email == null) {
+                throw new OAuth2AuthenticationException(
+                        new OAuth2Error("email_not_found"),
+                        "OAuth2 로그인에 실패했습니다. 이메일 정보를 가져올 수 없습니다."
+                );
+            }
+        }
 
         if (email == null) {
             getRedirectStrategy().sendRedirect(request, response, createRedirectUrl(clientUrl + "/oauth2/disallowance"));
