@@ -6,6 +6,8 @@ module.exports = function(app) {
     createProxyMiddleware({
       target: 'http://localhost:8080',
       changeOrigin: true,
+      ws: true, // 웹소켓 프록시 허용
+
     })
   );
 };

@@ -27,7 +27,7 @@ const Chat = ({ dropDownSet }) => {
   }, [chatData]);
 
   // Chatting 관련 끝
-  const webSocketUrl = `wss://mystorynews.net/chat`;
+  const webSocketUrl = `ws://localhost:8080/chat`;
   let ws = useRef(null);
 
   const [socketConnected, setSocketConnected] = useState(false);
