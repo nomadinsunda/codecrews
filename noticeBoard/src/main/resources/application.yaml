@@ -1,0 +1,38 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+kafka:
+  bootstrap-servers: localhost:9092
+
+  consumer:
+    group-id: noticeboard-chat-group
+    auto-offset-reset: latest
+    # ErrorHandlingDeserializer
+    key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+    value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+    properties:
+      spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+      spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+      spring.json.trusted.packages: "com.example.noticeboard.meeting.chat.dto"
+      spring.json.value.default.type: "com.example.noticeboard.meeting.chat.dto.ChatRequest"
+
+  listener:
+    missing-topics-fatal: false
