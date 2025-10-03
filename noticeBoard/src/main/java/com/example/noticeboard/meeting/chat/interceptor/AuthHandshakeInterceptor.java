@@ -1,4 +1,4 @@
-package com.example.noticeboard.meeting.chat.config;
+package com.example.noticeboard.meeting.chat.interceptor;
 
 import com.example.noticeboard.security.jwt.support.JwtTokenProvider;
 import jakarta.servlet.http.Cookie;

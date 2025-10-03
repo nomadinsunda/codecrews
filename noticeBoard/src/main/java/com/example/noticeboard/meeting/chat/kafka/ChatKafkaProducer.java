@@ -1,4 +1,4 @@
-package com.example.noticeboard.meeting.chat.service;
+package com.example.noticeboard.meeting.chat.kafka;
 
 import com.example.noticeboard.meeting.chat.dto.ChatRequest;
 import lombok.RequiredArgsConstructor;
