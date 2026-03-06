@@ -8,7 +8,7 @@ server:
 cloud:
   aws:
     s3:
-      bucket: mynoticebucket
+      bucket: noticeboardbucket
       stack.auto: false
     region:
       static: ap-northeast-2
@@ -23,15 +23,15 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
     password: ${DB_PASSWORD}
-  sql:
-    init:
-      mode: always
+#  sql:
+#    init:
+#      mode: always
   jpa:
     database: mysql
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
       ddl-auto: validate
-
+  
   # Redis 설정
   data:
     redis:

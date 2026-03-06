@@ -35,3 +35,11 @@ services:
 
       # 개발 편의 (자동 토픽 생성)
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  redis:
+    image: redis:latest
+    container_name: redis-container
+    ports:
+     - "6379:6379"
+    # .env 파일의 REDIS_PASSWORD 값을 가져와서 비밀번호 강제 설정
+    command: redis-server --requirepass ${REDIS_PASSWORD}

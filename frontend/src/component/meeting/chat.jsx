@@ -1,204 +1,171 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable react/jsx-no-undef */
-import '../../_style/meeting/chat.css'
-import '../../_style/meeting/chatData.css'
-import line from '../../_image/line-3.svg'
-import exit from '../../_image/exit.png'
-import defaultALT from '../../_image/defaultALT.png'
-import React, { Fragment, useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import axios from "axios";
+import { Client } from '@stomp/stompjs'; // stompjs 대신 @stomp/stompjs 사용
+import SockJS from 'sockjs-client';
+
+import '../../_style/meeting/chat.css';
+import '../../_style/meeting/chatData.css';
+import exit from '../../_image/exit.png';
+import defaultALT from '../../_image/defaultALT.png';
 
 const Chat = ({ dropDownSet }) => {
-  const [chatRoom, setChatRoom] = useState([]); // 방 번호
-  const [meetingId, setMeetingId] = useState(0); // 채팅방이 속한 채팅 방 번호
-  const [toogle, setToogle] = useState(true);
-  const [chatData, setChatData] = useState([]); // 전송된 데이터 목록
-  const [userInfo, setUserInfo] = useState({ userKey: 0, userId: "", profileImage: "" });
+  const [chatRoom, setChatRoom] = useState([]);
+  const [meetingId, setMeetingId] = useState(0);
+  const [isRoomList, setIsRoomList] = useState(true);
+  const [chatData, setChatData] = useState([]);
+  const [userInfo, setUserInfo] = useState({ userId: "", profileImage: "" });
+  const [inputData, setInputData] = useState("");
 
-  // Chat Scroll
+  const stompClient = useRef(null);
   const messagesEndRef = useRef(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [chatData]);
+  }, [chatData, scrollToBottom]);
 
-  // Chatting 관련 끝
-  const webSocketUrl = `ws://localhost:8080/chat`;
-  let ws = useRef(null);
-
-  const [socketConnected, setSocketConnected] = useState(false);
-  // Chatting 관련 종료
-
-  const [inputData, setInputData] = useState(""); // 입력 데이터
-  const onChangeInputData = (e) => {
-    setInputData(e.target.value);
-  }
-  const onPushEnter = (e) => {
-    if (e.key == 'Enter') {
-      if(inputData == "") {
-        alert("메세지를 입력해 주세요.");
-
-        return;
+  // 1. 초기 데이터 로딩
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [roomRes, userRes] = await Promise.all([
+          axios.get(`/chat/participants`),
+          axios.get(`/users`)
+        ]);
+        setChatRoom(roomRes.data);
+        const { id, profileImage } = userRes.data.data;
+        setUserInfo({ userId: id, profileImage });
+      } catch (err) {
+        console.error("Data Loading Error:", err);
       }
-      if (socketConnected) {
-        ws.current.send(
-          JSON.stringify({
+    };
+    fetchInitialData();
+  }, []);
+
+  // 2. STOMP 연결 및 채팅방 입장
+  const enterChatRoom = async (mId) => {
+    setMeetingId(mId);
+    setIsRoomList(false);
+    setChatData([]);
+
+    // 기존 내역 로드
+    try {
+      const res = await axios.get(`/chat/${mId}`);
+      setChatData(res.data);
+    } catch (err) { console.error(err); }
+
+    // 클라이언트 설정
+    const client = new Client({
+      webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+      reconnectDelay: 5000,
+      debug: (str) => console.log(str), // 연결 과정을 콘솔에서 확인 가능
+      onConnect: () => {
+        console.log("STOMP Connected!");
+
+        // 구독 경로 (서버의 SimpMessagingTemplate 경로와 일치)
+        client.subscribe(`/topic/chat.${mId}`, (message) => {
+          const received = JSON.parse(message.body);
+          setChatData((prev) => [...prev, received]);
+        });
+
+        // 입장 메시지 발행 (서버의 @MessageMapping 경로와 일치)
+        client.publish({
+          destination: `/app/chat.enter.${mId}`,
+          body: JSON.stringify({
+            sender: userInfo.userId,
+            meetingId: mId,
+            messageType: "ENTER"
+          })
+        });
+      },
+      onStompError: (frame) => {
+        console.error('STOMP Error:', frame.headers['message']);
+      }
+    });
+
+    client.activate();
+    stompClient.current = client;
+  };
+
+  // 3. 메시지 전송 (Enter 입력 시)
+  const onPushEnter = (e) => {
+    if (e.key === 'Enter') {
+      if (!inputData.trim()) return;
+
+      if (stompClient.current && stompClient.current.connected) {
+        // 서버의 @MessageMapping("chat.send.{meetingId}")와 일치
+        stompClient.current.publish({
+          destination: `/app/chat.send.${meetingId}`,
+          body: JSON.stringify({
             sender: userInfo.userId,
             message: inputData,
-            meetingId: meetingId,
             senderImage: userInfo.profileImage,
-            messageType: "SEND"
+            messageType: "SEND",
           })
-        );
+        });
         setInputData("");
       }
     }
-  }
+  };
 
-  useEffect(() => {
-    if (toogle == false) {
-      // Socket
-      if (!ws.current) {
-        ws.current = new WebSocket(webSocketUrl);
-        ws.current.onopen = () => {
-          console.log("connected to " + webSocketUrl);
-          setSocketConnected(true);
-        };
-        ws.current.onclose = (error) => {
-          console.log("disconnect from " + webSocketUrl);
-          console.log(error);
-        };
-        ws.current.onerror = (error) => {
-          console.log("connection error " + webSocketUrl);
-          console.log(error);
-        };
-        ws.current.onmessage = (evt) => {
-          const data = JSON.parse(evt.data);
-          setChatData((prevItems) => [...prevItems, data]);
-        };
-      }
-
-      return () => {
-        console.log("clean up");
-        ws.current.close();
-      };
+  // 클린업: 방을 나가거나 닫을 때 연결 해제
+  const leaveChat = () => {
+    if (stompClient.current) {
+      stompClient.current.deactivate();
+      stompClient.current = null;
     }
-  }, [toogle]);
-
-  useEffect(() => {
-    if (socketConnected) {
-      ws.current.send(
-        JSON.stringify({
-          sender: userInfo.userId,
-          message: "",
-          meetingId: meetingId,
-          senderImage: "",
-          messageType: "ENTER"
-        })
-      );
-    }
-  }, [socketConnected]);
-
-
-  useEffect(async () => {
-    await axios({
-      method: "GET",
-      mode: "cors",
-      url: `/chat/participants`
-    }).then((response) => {
-      setChatRoom(response.data);
-    }).catch((err) => {
-      console.log(err.response.data)
-    });
-
-    await axios({ // 유저의 개인 정보
-      method: "GET",
-      mode: "cors",
-      url: `/users`
-    }).then((response) => {
-      setUserInfo({ userKey: response.data.data.userKey, userId: response.data.data.id, profileImage: response.data.data.profileImage });
-    }).catch((err) => {
-      console.log(err.response.data)
-    });
-  }, []);
-
-  const getChatData = async (roomId, meetingId) => {
-    setMeetingId(meetingId);
-    setToogle(false);
-    await axios({ // 데이터 가져오기
-      method: "GET",
-      mode: "cors",
-      url: `/chat/${meetingId}`
-    }).then((response) => {
-      setChatData(response.data);
-    }).catch((err) => {
-      console.log(err.response.data)
-    });
-  }
-
-  const ChatRoomContent = ({ room }) => {
-    return (
-      room.map(data => (
-        <div className="chatContent" key={data.chatId} onClick={() => getChatData(data.chatId, data.meetingId)}>
-          <img className="ellipse-chat" alt="img" src={data.meetingImage} />
-          <div className="text-wrapper-chat">{data.meetingTitle}</div>
-          <div className="text-wrapper-chat-last">모임 개설일 : {data.createDate}</div>
-        </div>
-      ))
-    )
-  }
-
-  const ChatDataContent = ({ data }) => {
-    return (
-      data.map(detail => (
-        <div className="overlap-group-chatData" key={detail.chatId == 0 ? Math.floor(Math.random() * 10_000_000_001) : detail.chatId}>
-          <img
-            className="mask-group-chatData"
-            alt="img"
-            src={detail.senderImage || defaultALT}
-          />
-          <div className="text-wrapper-7-chatData">{detail.sender}</div>
-          <span className="rectangle-chatData">
-            {detail.message}
-          </span>
-          <div className="text-wrapper-4-chatData">{detail.sendTime}</div>
-          <div ref={messagesEndRef} />
-        </div>
-      ))
-    )
-  }
+    setIsRoomList(true);
+  };
 
   return (
     <div className="element-chat">
       <div className="div-chat">
-        <div className="text-wrapper-4-chat">모임 채팅</div>
-        <div className="chatContentArea">
-          {toogle ?
-            <Fragment>
-              <ChatRoomContent room={chatRoom} />
-            </Fragment> :
-            <Fragment>
-              <div className="element-chatData">
-                <div className="div-chatData">
-                  <ChatDataContent data={chatData}/>
-                </div>
-                <div className="rectangle-3-chatData">
-                  <input className="chattingInput" onChange={onChangeInputData} onKeyDown={onPushEnter} value={inputData} />
-                </div>
-              </div>
-            </Fragment>
-          }
+        <div className="text-wrapper-4-chat">
+          {!isRoomList && <span onClick={leaveChat} style={{cursor:'pointer', marginRight:'10px'}}>&lt;</span>}
+          {isRoomList ? "모임 채팅" : "채팅 내용"}
         </div>
-        <img className="light-s-chat" alt="Light s" src={exit} onClick={dropDownSet} />
-        <img className="line-chat" alt="Line" src={line} />
+        <div className="chatContentArea">
+          {isRoomList ? (
+            chatRoom.map(room => (
+              <div className="chatContent" key={room.chatId} onClick={() => enterChatRoom(room.meetingId)}>
+                <img className="ellipse-chat" alt="img" src={room.meetingImage || defaultALT} />
+                <div className="text-wrapper-chat">{room.meetingTitle}</div>
+                <div className="text-wrapper-chat-last">개설일: {room.createDate}</div>
+              </div>
+            ))
+          ) : (
+            <div className="element-chatData">
+              <div className="div-chatData">
+                {chatData.map((msg, idx) => (
+                  <div className="overlap-group-chatData" key={msg.chatId || idx}>
+                    <img className="mask-group-chatData" alt="img" src={msg.senderImage || defaultALT} />
+                    <div className="text-wrapper-7-chatData">{msg.sender}</div>
+                    <span className="rectangle-chatData">{msg.message}</span>
+                    <div className="text-wrapper-4-chatData">{msg.sendTime}</div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+              <div className="rectangle-3-chatData">
+                <input 
+                  className="chattingInput" 
+                  value={inputData}
+                  onChange={(e) => setInputData(e.target.value)} 
+                  onKeyDown={onPushEnter}
+                  placeholder="메시지를 입력하세요..."
+                />
+              </div>
+            </div>
+          )}
+        </div>
+        <img className="light-s-chat" alt="Exit" src={exit} onClick={dropDownSet} />
       </div>
     </div>
-  )
-
-}
+  );
+};
 
 export default Chat;

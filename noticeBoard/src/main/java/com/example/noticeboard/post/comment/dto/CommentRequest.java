@@ -1,10 +1,12 @@
 package com.example.noticeboard.post.comment.dto;
 
-import lombok.Builder;
-import lombok.Getter;
+import lombok.*;
 
-@Builder
+
 @Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class CommentRequest {
     private String content;
     private long postId;

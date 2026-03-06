@@ -7,6 +7,7 @@
     "@ckeditor/ckeditor5-react": "^4.0.0",
     "@date-io/date-fns": "^2.17.0",
     "@react-native-async-storage/async-storage": "^1.17.10",
+    "@stomp/stompjs": "^7.3.0",
     "@testing-library/jest-dom": "^5.16.2",
     "@testing-library/react": "^12.1.4",
     "@testing-library/user-event": "^13.5.0",
@@ -35,6 +36,7 @@
     "react-router-dom": "6.11.2",
     "react-scripts": "^5.0.1",
     "react-time-picker": "^6.5.0",
+    "sockjs-client": "^1.6.1",
     "web-vitals": "^3.4.0"
   },
   "scripts": {
