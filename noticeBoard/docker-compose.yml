@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -17,29 +18,34 @@ services:
     ports:
       - "9092:9092"
     environment:
+      # 1. 브로커 기본 설정
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-
-      # 리스너 바인딩 + 클라이언트에게 알리는 주소
+    
+      # 2. 리스너 설정 (IPv4 명시하여 로컬 지연 최소화)
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-
-      # 단일 브로커 환경에서 동작 보장을 위한 최소값 (Production 환경에서는 3 이상 권장)
+    
+      # 3. [성능 튜닝] 채팅 앱을 위한 지연 시간(Latency) 최적화
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+        
+      # 4. 단일 브로커(Single Broker) 복제 설정
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_MIN_INSYNC_REPLICAS: 1
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
-
-      # 개발 편의 (자동 토픽 생성)
+    
+      # 5. 개발 편의성 설정
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
 
   redis:
     image: redis:latest
     container_name: redis-container
     ports:
-     - "6379:6379"
-    # .env 파일의 REDIS_PASSWORD 값을 가져와서 비밀번호 강제 설정
+      - "6379:6379"
+    # .env 파일의 REDIS_PASSWORD 적용
     command: redis-server --requirepass ${REDIS_PASSWORD}
