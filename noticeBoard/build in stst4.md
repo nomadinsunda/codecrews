@@ -9,7 +9,7 @@ sourceSets {
 }
 ```
 
-## build.gradle 파일을 ide의 코드 에디터창에서 오픈하고 오른쪽 마우스 버튼 클릭 후, gradle -> refresh gradle project 선택 
+## build.gradle 파일을 STS4의 코드 에디터창에서 오픈하고 오른쪽 마우스 버튼 클릭 후, gradle -> refresh gradle project 선택 
 
 # 터미널에서 다음 커맨드 라인 실행
 ```
