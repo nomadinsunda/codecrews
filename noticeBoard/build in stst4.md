@@ -1,4 +1,4 @@
-# build.gradle 추가 설정
+# QueryDSL을 위한 build.gradle 추가 설정
 ```
 sourceSets {
     main {
